@@ -15,6 +15,7 @@ using namespace std;
 #define WHITEBAR 25
 #define REDOUT 26
 #define WHITEOUT 27
+#define END 1
 
 int diceRoll() {
 	int dice;
@@ -34,10 +35,10 @@ int diceSum(int dice[4], int n) {
 
 struct board_t {
 	char board[29] = "R0000W0W000RW000R0R0000WRWRW"; // pola 1-24 // barRW // out RW
-	int board_numbers[28] = { 2,0,0,0,0,5,0,3,0,0,0,5,5,0,0,0,3,0,5,0,0,0,0,2,0,3,0,0 };
+	int board_numbers[28] = { 2,0,0,0,0,5,0,3,0,0,0,5,5,0,0,0,3,0,5,0,0,0,0,2,0,0,0,0 };
 };
 
-void activePlayer(char player){
+void activePlayer(char player) {
 	gotoxy(64, 11);
 	if (player == 'W')
 		cout << "White's turn";
@@ -47,22 +48,22 @@ void activePlayer(char player){
 
 void fillBarOut(const board_t board) {
 	int y;
-	gotoxy(OUTX, y = 3); 
+	gotoxy(OUTX, y = 3);
 	for (int i = 0; i < board.board_numbers[REDOUT] && i < 8; i++) {
 		cout << "R";
 		gotoxy(OUTX, y += 1);
 	}
-	gotoxy(OUTX, y = 19); 
+	gotoxy(OUTX, y = 19);
 	for (int i = 0; i < board.board_numbers[WHITEOUT] && i < 8; i++) {
 		cout << "W";
 		gotoxy(OUTX, y -= 1);
 	}
-	gotoxy(BARX, y = 3); 
+	gotoxy(BARX, y = 3);
 	for (int i = 0; i < board.board_numbers[REDBAR] && i < 8; i++) {
 		cout << "R";
 		gotoxy(BARX, y += 1);
 	}
-	gotoxy(BARX, y = 19); 
+	gotoxy(BARX, y = 19);
 	for (int i = 0; i < board.board_numbers[WHITEBAR] && i < 8; i++) {
 		cout << "W";
 		gotoxy(BARX, y -= 1);
@@ -141,19 +142,19 @@ char* moveInput(const char* placeholder, int x, int y) {
 	return ch;
 }
 
-int validateBearOff(board_t board, char player) {
+int validateBearOff(board_t board, char player){
 	if (player == 'R') {
-		if (board.board[REDBAR] > 0)
+		if (board.board_numbers[REDBAR] > 0)
 			return 0;
-		for (int i = 6; i < 24; i++) {
+		for (int i = 17; i >= 0; i--) {
 			if (board.board[i] == player)
 				return 0;
 		}
 	}
 	else {
-		if (board.board[WHITEBAR] > 0)
+		if (board.board_numbers[WHITEBAR] > 0)
 			return 0;
-		for (int i = 17; i > 0; i--) {
+		for (int i = 6; i < 24; i++) {
 			if (board.board[i] == player)
 				return 0;
 		}
@@ -166,7 +167,10 @@ int validateDice(board_t board, int move[2], char player, int dice) {
 		if (move[0] == REDBAR)
 			if (dice == 1 + move[1])
 				return 1;
-		if (dice == (move[0] - move[1])) {
+		if (move[1] == REDOUT)
+			if (dice + move[0] > 23)
+				return 1;
+		if (dice == (-1) * (move[0] - move[1])) {
 			return 1;
 		}
 	}
@@ -174,7 +178,10 @@ int validateDice(board_t board, int move[2], char player, int dice) {
 		if (move[0] == WHITEBAR)
 			if (dice == 24 - move[1])
 				return 1;
-		if (dice == (-1)*(move[0] - move[1])) {
+		if (move[1] == WHITEOUT)
+			if (dice - move[0] > 0)
+				return 1;
+		if (dice == (move[0] - move[1])) {
 			return 1;
 		}
 	}
@@ -182,8 +189,15 @@ int validateDice(board_t board, int move[2], char player, int dice) {
 }
 
 int validatePos(board_t board, int move[2], char player) {
-	if (board.board[move[0]] == board.board[move[1]] || board.board_numbers[move[1]] == 0) 
+	if ((move[1] < 0) || (move[1] > 27))
+		return 0;
+	if (board.board[move[0]] == board.board[move[1]] || board.board_numbers[move[1]] == 0) {
+		if ((move[1] == REDOUT) || (move[1] == WHITEOUT)) {
+			if (validateBearOff(board, player))
+				return BEAROFF;
+		}
 		return NORMAL;
+	}
 
 	else if (board.board[move[0]] != board.board[move[1]]) {
 		if (board.board_numbers[move[1]] == 1) {
@@ -191,17 +205,13 @@ int validatePos(board_t board, int move[2], char player) {
 		}
 	}
 
-	else if (move[1] == REDOUT || move[1] == WHITEOUT) {
-		if(validateBearOff(board, player))
-			return BEAROFF;
-	}
 	return 0;
 }
 
 void makeMove(board_t &board, int move[2], char player, int type) {
 	board.board_numbers[move[0]] -= 1;
-	if (board.board_numbers[move[0]] == 0)
-		board.board[move[0]] = '0';
+	if ((board.board_numbers[move[0]] == 0) && (move[0]<24))
+			board.board[move[0]] = '0';
 	if (type == NORMAL) {
 		board.board_numbers[move[1]] += 1;
 		if (board.board_numbers[move[1]] == 1)
@@ -222,17 +232,19 @@ void makeMove(board_t &board, int move[2], char player, int type) {
 	}
 }
 
-int* validateMove(board_t &board, int move[2], char player, int dice[4]) {
+int validateMove(board_t &board, int move[2], char player, int dice[4], int test = 0) {
 	if (board.board[move[0]] != player)
-		return dice;
+		return 0;
 
 	int type = validatePos(board, move, player);
 	if(type != 0){
 		for (int i = 0; i < 4; i++) {
+
 			if (validateDice(board, move, player, dice[i])) {
 				dice[i] = 0;
-				makeMove(board, move, player, type);
-				return dice;
+				if(test == 0)
+					makeMove(board, move, player, type);
+				return 1;
 			}
 		}
 		for (int i = 2; i <=4 ; i++) {
@@ -240,12 +252,13 @@ int* validateMove(board_t &board, int move[2], char player, int dice[4]) {
 				for (int j = 0; j < i; j++) {
 					dice[j] = 0;
 				}
-				makeMove(board, move, player, type);
-				return dice;
+				if (test == 0)
+					makeMove(board, move, player, type);
+				return 1;
 			}
 		}
 	}
-	return dice;
+	return 0;
 }
 
 void diceRolling(int *dice) {
@@ -292,18 +305,69 @@ void diceRolls(int dice[4]) {
 }
 
 int checkBar(board_t board, char player, char pawn_to_move[INPUTLENGTH]) {
-	if (player = 'R' && board.board_numbers[REDBAR] > 0) {
+	if (player == 'R' && board.board_numbers[REDBAR] > 0) {
 		if (strcmp(pawn_to_move, "BAR") == 0) {
 			return 1;
 		}
 	}
-	else if (player = 'W' && board.board_numbers[WHITEBAR] > 0) {
+	else if (player == 'W' && board.board_numbers[WHITEBAR] > 0) {
 		if (strcmp(pawn_to_move, "BAR") == 0) {
 			return 1;
 		}
 	}
-	else if ((player = 'R' && board.board_numbers[REDBAR] == 0) || (player = 'W' && board.board_numbers[WHITEBAR] == 0))
+	else if ((player == 'R' && board.board_numbers[REDBAR] == 0) || (player == 'W' && board.board_numbers[WHITEBAR] == 0))
 		return 1;
+	return 0;
+}
+
+int anyMoveAvailable(board_t board, char player, const int cdice[4]) {
+	int d;
+	int move[2];
+	int dice[4];
+
+	for (int i = 0; i < 4; i++)
+		dice[i] = cdice[i];
+	if (player == 'W') {
+		d = -1;
+		move[0] = WHITEBAR;
+	}
+	else {
+		d = 1;
+		move[0] = REDBAR;
+	}
+	
+	if (board.board_numbers[move[0]] > 0) {
+		for (int i = 0; i < 4; i++) {
+			if (player == 'R')
+				move[1] = d * dice[i];
+			else
+				move[1] = 24 + d * dice[i];
+			if(validateMove(board, move, player, dice,1)==1) {
+				return 1;
+			}
+		}
+	}
+	else {
+		for (int i = 0; i < 24; i++) {
+			move[0] = i;
+			if (player == board.board[i]) {
+				for (int j = 0; j < 4; j++) {
+					move[1] = move[0] + d * dice[j];
+ 					if (validateMove(board, move, player, dice, 1) == 1) {
+						return 1;
+					}
+				}
+			}
+		}
+	}
+	if (validateBearOff(board, player)) {
+		if ((board.board_numbers[26] == 15) || (board.board_numbers[27] == 15))
+			return 0;
+		else
+			return 1;
+	}
+	cout << "No possible legal moves";
+	getch();
 	return 0;
 }
 
@@ -313,14 +377,20 @@ void drawScreen(board_t board, char player, int dice[4]) {
 	diceRolls(dice);
 }
 
-void game(board_t &board, char player) {
+int game(board_t &board, char player) {
 	char pawn_to_move[INPUTLENGTH], pos_to_move[INPUTLENGTH];
 	int dice[] = { 0,0,0,0 };
+	const int* cdice = dice;
 	diceRolling(dice);
 	int temp;
 
 	do {
 		drawScreen(board, player, dice);
+		if (anyMoveAvailable(board, player, cdice) == 0) {
+			if (validateBearOff(board, player))
+				return END;
+			break;
+		}
 		strcpy(pawn_to_move, moveInput("Pawn: ", 1, 24));
 		strcpy(pos_to_move, moveInput("Move to: ", 1, 25));
 		if (checkBar(board, player, pawn_to_move)) {
@@ -331,9 +401,10 @@ void game(board_t &board, char player) {
 			if (temp = checkInputs(board, pos_to_move, player)) {
 				move[1] = temp;
 			}
-			*dice = *validateMove(board, move, player, dice);
+			validateMove(board, move, player, dice);
 		}
 	} while (diceSum(dice, 4) > 0 );
+	return 0;
 }
 
 int main() {
@@ -351,7 +422,11 @@ int main() {
 
 		drawBoard(board);
 		activePlayer(player);
-		game(board, player);
+		if (game(board, player)==END) {
+			clrscr();
+			cout << "GAME OVER - Winner: " << player;
+			break;
+		}
 		round++;
 	}
 }

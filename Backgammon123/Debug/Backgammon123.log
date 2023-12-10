@@ -1,3 +1,4 @@
 ﻿  Backgammon123.cpp
-C:\Users\Mateusz\source\repos\backgammon\Backgammon123\Backgammon123.cpp(141): warning C4172: returning address of local variable or temporary: ch
+C:\Users\Mateusz\source\repos\backgammon\Backgammon123\Backgammon123.cpp(841,39): warning C4101: 'win': unreferenced local variable
+C:\Users\Mateusz\source\repos\backgammon\Backgammon123\Backgammon123.cpp(238): warning C4172: returning address of local variable or temporary: ch
   Backgammon123.vcxproj -> C:\Users\Mateusz\source\repos\backgammon\Debug\Backgammon123.exe
